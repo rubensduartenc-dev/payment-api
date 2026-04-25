@@ -8,8 +8,23 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        items: [
+body: JSON.stringify({
+  items: [
+    {
+      title,
+      quantity: 1,
+      unit_price: Number(price)
+    }
+  ],
+  external_reference: booking_id,
+
+  payment_methods: {
+    excluded_payment_types: [],
+    excluded_payment_methods: [],
+    installments: 1,
+    default_payment_method_id: "pix"
+  }
+})
           {
             title,
             quantity: 1,
