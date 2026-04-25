@@ -1,15 +1,13 @@
 export default async function handler(req, res) {
-  // só aceita POST
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "Método não permitido" });
   }
 
   try {
     const { title, price, booking_id } = req.body;
 
-    // validação básica
     if (!title || !price) {
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({ error: "Dados obrigatórios faltando" });
     }
 
     const response = await fetch(
@@ -26,20 +24,28 @@ export default async function handler(req, res) {
               title: title,
               quantity: 1,
               unit_price: Number(price),
+              currency_id: "BRL",
             },
           ],
-          external_reference: booking_id,
+
+          external_reference: booking_id || "sem-id",
 
           payment_methods: {
             excluded_payment_types: [],
             excluded_payment_methods: [],
             installments: 1,
-        payment_methods: {
-  excluded_payment_types: [],
-  excluded_payment_methods: [],
-  installments: 1
-},
           },
+
+          back_urls: {
+            success: "https://seusite.com/sucesso",
+            failure: "https://seusite.com/erro",
+            pending: "https://seusite.com/pendente",
+          },
+
+          auto_return: "approved",
+
+          notification_url:
+            "https://seu-projeto.vercel.app/api/webhook",
         }),
       }
     );
@@ -47,7 +53,7 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(400).json({
+      return res.status(500).json({
         error: "Erro ao criar pagamento",
         details: data,
       });
@@ -59,7 +65,7 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({
       error: "Erro interno",
-      details: error.message,
+      message: error.message,
     });
   }
 }
