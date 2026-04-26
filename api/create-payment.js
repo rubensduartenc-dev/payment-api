@@ -28,6 +28,11 @@ export default async function handler(req, res) {
             },
           ],
 
+          // 🔥 ESSENCIAL PRA PIX APARECER
+          payer: {
+            email: "test_user_123456@testuser.com"
+          },
+
           external_reference: booking_id || "sem-id",
 
           payment_methods: {
