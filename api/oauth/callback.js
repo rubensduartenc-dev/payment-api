@@ -2,21 +2,20 @@ export default async function handler(req, res) {
   try {
     const { code, state } = req.query;
 
-    // 🔒 Validação básica
+    // 🔒 Validação
     if (!code || !state) {
       return res.status(400).json({
         error: "Missing code or state"
       });
     }
 
-    // 🔑 Credenciais do Mercado Pago (vindas do Base44 ENV)
+    // 🔑 Credenciais
     const CLIENT_ID = process.env.MP_CLIENT_ID;
     const CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
 
-    // ⚠️ IMPORTANTE: essa URL tem que ser exatamente a mesma cadastrada no Mercado Pago
     const REDIRECT_URI = "https://payment-api-brown.vercel.app/api/oauth/callback";
 
-    // 🔁 Troca o "code" pelo access_token
+    // 🔁 Troca o code pelo token
     const response = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
       headers: {
@@ -33,7 +32,6 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // ❌ Se der erro no Mercado Pago
     if (!response.ok) {
       return res.status(500).json({
         error: "Erro ao trocar token",
@@ -41,12 +39,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // 📌 Aqui está o ponto MAIS IMPORTANTE:
-    // "state" = ID do profissional no seu banco
+    // 📌 ID do profissional (veio no state)
     const profissionalId = state;
 
-    // 🔥 SALVA no Base44
-    await fetch(`https://base44.app/api/apps/YOUR_APP_ID/collections/profissionais/${profissionalId}`, {
+    // 🔥 SALVAR NO BASE44
+    await fetch(`https://base44.app/api/apps/SEU_APP_ID/collections/profissionais/${profissionalId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -60,8 +57,8 @@ export default async function handler(req, res) {
       })
     });
 
-    // ✅ Redireciona de volta pro app
-    res.redirect("https://beautyglow-br.base44.app");
+    // ✅ REDIRECIONA (SEM ERRO 404)
+    return res.redirect("https://beautyglow-br.base44.app");
 
   } catch (error) {
     return res.status(500).json({
