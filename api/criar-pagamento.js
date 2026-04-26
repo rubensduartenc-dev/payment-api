@@ -1,76 +1,43 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Método não permitido" });
-  }
-
   try {
-    const { title, price, booking_id } = req.body;
+    const { title, price, email, profissional } = req.body;
 
-    if (!title || !price) {
-      return res.status(400).json({ error: "Dados obrigatórios faltando" });
-    }
+    // 🔴 PEGAR TOKEN DO PROFISSIONAL (simulação por enquanto)
+    const accessToken = profissional.mp_access_token;
 
-    const response = await fetch(
-      "https://api.mercadopago.com/checkout/preferences",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
+    // 🔴 DEFINIR COMISSÃO
+    const isClienteProprio = false; // depois vem do seu sistema
+    const porcentagem = isClienteProprio ? 0.08 : 0.12;
+    const applicationFee = price * porcentagem;
+
+    const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        items: [
+          {
+            title: title,
+            quantity: 1,
+            unit_price: Number(price)
+          }
+        ],
+        payer: {
+          email: email
         },
-        body: JSON.stringify({
-          items: [
-            {
-              title: title,
-              quantity: 1,
-              unit_price: Number(price),
-              currency_id: "BRL",
-            },
-          ],
-
-          // 🔥 ESSENCIAL PRA PIX APARECER
-          payer: {
-            email: "test_user_123456@testuser.com"
-          },
-
-          external_reference: booking_id || "sem-id",
-
-          payment_methods: {
-            excluded_payment_types: [],
-            excluded_payment_methods: [],
-            installments: 1,
-          },
-
-          back_urls: {
-            success: "https://seusite.com/sucesso",
-            failure: "https://seusite.com/erro",
-            pending: "https://seusite.com/pendente",
-          },
-
-          auto_return: "approved",
-
-          notification_url:
-            "https://seu-projeto.vercel.app/api/webhook",
-        }),
-      }
-    );
+        application_fee: Number(applicationFee)
+      })
+    });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      return res.status(500).json({
-        error: "Erro ao criar pagamento",
-        details: data,
-      });
-    }
-
     return res.status(200).json({
-      init_point: data.init_point,
+      init_point: data.init_point
     });
+
   } catch (error) {
-    return res.status(500).json({
-      error: "Erro interno",
-      message: error.message,
-    });
+    return res.status(500).json({ error: error.message });
   }
 }
