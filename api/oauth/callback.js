@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     });
 
     // ✅ Redireciona de volta pro app
-    return res.redirect("https://beautyglow-br.base44.app/perfil?mp=conectado");
+    res.redirect("https://beautyglow-br.base44.app");
 
   } catch (error) {
     return res.status(500).json({
