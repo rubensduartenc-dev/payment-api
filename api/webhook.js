@@ -17,10 +17,9 @@ export default async function handler(req, res) {
 
     if (payment.status === "approved") {
       console.log("PIX pago!");
-
-      // 👉 liberar serviço aqui
+      // liberar serviço aqui
     }
   }
 
-  res.status(200).send("ok");
+  res.status(200).send("OK");
 }
