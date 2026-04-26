@@ -50,7 +50,7 @@ export default async function handler(req, res) {
           auto_return: "approved",
 
           notification_url:
-            "https://seu-projeto.vercel.app/api/webhook",
+            "payment-api-brown.vercel.app",
         }),
       }
     );
