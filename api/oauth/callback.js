@@ -2,18 +2,19 @@ export default async function handler(req, res) {
   try {
     const { code, state } = req.query;
 
+    // 🔒 Validação básica
     if (!code || !state) {
       return res.status(400).json({
         error: "Missing code or state"
       });
     }
 
+    // 🔑 ENV
     const CLIENT_ID = process.env.MP_CLIENT_ID;
     const CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
     const BASE44_API_KEY = process.env.BASE44_API_KEY;
-    const BASE44_APP_ID = process.env.BASE44_APP_ID;
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !BASE44_API_KEY || !BASE44_APP_ID) {
+    if (!CLIENT_ID || !CLIENT_SECRET || !BASE44_API_KEY) {
       return res.status(500).json({
         error: "Missing environment variables"
       });
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
 
     const REDIRECT_URI = "https://payment-api-brown.vercel.app/api/oauth/callback";
 
-    // 🔁 Trocar code por token
+    // 🔁 Troca code por token
     const mpResponse = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
       headers: {
@@ -45,25 +46,33 @@ export default async function handler(req, res) {
       });
     }
 
+    // 📌 ID do profissional (vem do state)
     const profissionalId = state;
 
     console.log("profissionalId:", profissionalId);
     console.log("mpData:", mpData);
 
-    // 🔥 SALVAR NO BASE44 (CORRETO)
+    // 🔥 CHAMA FUNÇÃO DO BASE44 (CORRETO)
     const base44Response = await fetch(
-      `https://base44.app/api/apps/${BASE44_APP_ID}/entities/Professional/${profissionalId}`,
+      "https://beautyglow-br.base44.app/functions/adminAction",
       {
-        method: "PATCH", // ⚠️ PATCH, não PUT
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "api_key": BASE44_API_KEY
         },
         body: JSON.stringify({
-          mp_access_token: mpData.access_token,
-          mp_refresh_token: mpData.refresh_token,
-          mp_user_id: mpData.user_id,
-          mp_conectado: true
+          action: "connect_mp",
+          target_type: "professional",
+          target_id: profissionalId,
+          target_name: "MercadoPago",
+          details: "Conexão Mercado Pago",
+          data: {
+            mp_access_token: mpData.access_token,
+            mp_refresh_token: mpData.refresh_token,
+            mp_user_id: mpData.user_id,
+            mp_conectado: true
+          }
         })
       }
     );
@@ -80,7 +89,10 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.redirect("https://beautyglow-br.base44.app/profissional/perfil");
+    // ✅ SUCESSO → redireciona
+    return res.redirect(
+      "https://beautyglow-br.base44.app/profissional/perfil"
+    );
 
   } catch (error) {
     return res.status(500).json({
