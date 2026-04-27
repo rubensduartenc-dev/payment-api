@@ -53,20 +53,27 @@ export default async function handler(req, res) {
     console.log("profissionalId:", profissionalId);
     console.log("mpData:", mpData);
 
-    // 🔥 SALVAR NO BASE44 (CORRIGIDO)
+    // 🔥 CHAMAR FUNÇÃO DO BASE44 (CORRETO)
     const base44Response = await fetch(
-      `https://base44.app/api/apps/${BASE44_APP_ID}/entities/profissional/${profissionalId}`,
+      `https://base44.app/api/apps/${BASE44_APP_ID}/functions/adminAction`,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "api_key": BASE44_API_KEY
         },
         body: JSON.stringify({
-          mp_access_token: mpData.access_token,
-          mp_refresh_token: mpData.refresh_token,
-          mp_user_id: mpData.user_id,
-          mp_conectado: true
+          action: "connect_mp",
+          target_type: "professional",
+          target_id: profissionalId,
+          target_name: "MP Connect",
+          details: "Conexão com Mercado Pago",
+          data: {
+            mp_access_token: mpData.access_token,
+            mp_refresh_token: mpData.refresh_token,
+            mp_user_id: mpData.user_id,
+            mp_conectado: true
+          }
         })
       }
     );
