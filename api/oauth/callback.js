@@ -12,10 +12,12 @@ export default async function handler(req, res) {
     // 🔑 ENV
     const CLIENT_ID = process.env.MP_CLIENT_ID;
     const CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
+    const BASE44_API_KEY = process.env.BASE44_API_KEY;
+    const BASE44_APP_ID = process.env.BASE44_APP_ID;
 
-    if (!CLIENT_ID || !CLIENT_SECRET) {
+    if (!CLIENT_ID || !CLIENT_SECRET || !BASE44_API_KEY || !BASE44_APP_ID) {
       return res.status(500).json({
-        error: "Missing Mercado Pago credentials"
+        error: "Missing environment variables"
       });
     }
 
@@ -51,17 +53,20 @@ export default async function handler(req, res) {
     console.log("profissionalId:", profissionalId);
     console.log("mpData:", mpData);
 
-    // 🔥 CHAMA FUNÇÃO DO BASE44 (CORRETO)
+    // 🔥 SALVAR NO BASE44 (CORRIGIDO)
     const base44Response = await fetch(
-      "https://base44.app/api/functions/adminAction",
+      `https://base44.app/api/apps/${BASE44_APP_ID}/entities/profissional/${profissionalId}`,
       {
-        method: "POST",
+        method: "PUT",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "api_key": BASE44_API_KEY
         },
         body: JSON.stringify({
-          profissionalId,
-          mpData
+          mp_access_token: mpData.access_token,
+          mp_refresh_token: mpData.refresh_token,
+          mp_user_id: mpData.user_id,
+          mp_conectado: true
         })
       }
     );
@@ -79,9 +84,7 @@ export default async function handler(req, res) {
     }
 
     // ✅ SUCESSO → redireciona
-    return res.redirect(
-      "https://beautyglow-br.base44.app/profissional/perfil"
-    );
+    return res.redirect("https://beautyglow-br.base44.app/profissional/perfil");
 
   } catch (error) {
     return res.status(500).json({
