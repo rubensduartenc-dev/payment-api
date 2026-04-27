@@ -1,12 +1,12 @@
 export default async function handler(req, res) {
   try {
-    const { title, price, email, profissional } = req.body;
+    const { title, price, email, profissional, bookingId } = req.body;
 
-    // 🔴 PEGAR TOKEN DO PROFISSIONAL (simulação por enquanto)
+    // 🔐 Token do profissional
     const accessToken = profissional.mp_access_token;
 
-    // 🔴 DEFINIR COMISSÃO
-    const isClienteProprio = false; // depois vem do seu sistema
+    // 💰 Comissão
+    const isClienteProprio = false; // depois vem do sistema
     const porcentagem = isClienteProprio ? 0.08 : 0.12;
     const applicationFee = price * porcentagem;
 
@@ -21,12 +21,29 @@ export default async function handler(req, res) {
           {
             title: title,
             quantity: 1,
+            currency_id: "BRL",
             unit_price: Number(price)
           }
         ],
         payer: {
           email: email
         },
+
+        // 🔥 ESSENCIAL
+        external_reference: bookingId,
+
+        // 🔔 WEBHOOK
+        notification_url: "https://payment-api-brown.vercel.app/api/oauth/webhook",
+
+        // 🔁 REDIRECIONAMENTO
+        back_urls: {
+          success: "https://beautyglow-br.base44.app/sucesso",
+          failure: "https://beautyglow-br.base44.app/erro",
+          pending: "https://beautyglow-br.base44.app/pendente"
+        },
+        auto_return: "approved",
+
+        // 💸 SUA COMISSÃO
         application_fee: Number(applicationFee)
       })
     });
@@ -38,6 +55,8 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      error: error.message
+    });
   }
 }
