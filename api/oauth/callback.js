@@ -48,15 +48,16 @@ export default async function handler(req, res) {
 
     // 📌 ID do profissional (vem do state)
     const profissionalId = state;
-
+      console.log("profissionalId:", profissionalId);
+      console.log("mpData:", mpData);
     // 🔥 SALVAR NO BASE44 (CORRIGIDO)
     const base44Response = await fetch(
-      `https://base44.app/api/apps/69e592159a2bb27bdd7c158a/entities/profissional/${profissionalId}`,
+      `https://base44.app/api/entities/profissional/${profissionalId}`,
       {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${BASE44_API_KEY}`
+          "api_key": process.env.BASE44_API_KEY
         },
         body: JSON.stringify({
           mp_access_token: mpData.access_token,
@@ -68,7 +69,8 @@ export default async function handler(req, res) {
     );
 
     const base44Data = await base44Response.json();
-
+     console.log("BASE44 STATUS:", base44Response.status);
+     console.log("BASE44 RESPONSE:", base44Data);
     if (!base44Response.ok) {
       return res.status(500).json({
         error: "Erro ao salvar no Base44",
