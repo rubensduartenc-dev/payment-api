@@ -67,7 +67,7 @@ export default async function handler(req, res) {
           data: {
             mp_access_token: mpData.access_token,
             mp_refresh_token: mpData.refresh_token,
-            mp_user_id: String(mpData.user_id),
+            mp_user_id: String(mpData.user_id || ""),
             mp_conectado: true
           }
         })
