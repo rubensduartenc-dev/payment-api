@@ -53,20 +53,17 @@ export default async function handler(req, res) {
     console.log("mpData:", mpData);
 
     // 🔥 CHAMA FUNÇÃO DO BASE44 (CORRETO)
-    const base44Response = await fetch(
-      "https://beautyglow-br.base44.app/functions/adminAction",
-      {
+    const base44Response = 
+      await fetch( "https://beautyglow-br.base44.app/functions/adminAction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "api_key": BASE44_API_KEY
+          "api_key": process.env.BASE44_API_KEY
         },
         body: JSON.stringify({
-          action: "connect_mp",
+          action: "update_mp",
           target_type: "professional",
           target_id: profissionalId,
-          target_name: "MercadoPago",
-          details: "Conexão Mercado Pago",
           data: {
             mp_access_token: mpData.access_token,
             mp_refresh_token: mpData.refresh_token,
