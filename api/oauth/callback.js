@@ -9,7 +9,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔑 Credenciais
+    // 🔑 ENV
     const CLIENT_ID = process.env.MP_CLIENT_ID;
     const CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
     const BASE44_API_KEY = process.env.BASE44_API_KEY;
@@ -22,8 +22,8 @@ export default async function handler(req, res) {
 
     const REDIRECT_URI = "https://payment-api-brown.vercel.app/api/oauth/callback";
 
-    // 🔁 Troca o code pelo token
-    const tokenResponse = await fetch("https://api.mercadopago.com/oauth/token", {
+    // 🔁 Troca code por token
+    const mpResponse = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -37,48 +37,47 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await tokenResponse.json();
+    const mpData = await mpResponse.json();
 
-    if (!tokenResponse.ok) {
+    if (!mpResponse.ok) {
       return res.status(500).json({
         error: "Erro ao trocar token",
-        details: data
+        details: mpData
       });
     }
 
-    // 📌 ID do profissional (veio no state)
+    // 📌 ID do profissional (vem do state)
     const profissionalId = state;
 
-    // 🔥 SALVAR NO BASE44
-    const saveResponse = await fetch(
-      `https://base44.app/api/apps/SEU_APP_ID/collections/profissionais/${profissionalId}`,
+    // 🔥 SALVAR NO BASE44 (CORRIGIDO)
+    const base44Response = await fetch(
+      `https://base44.app/api/apps/69e592159a2bb27bdd7c158a/entities/profissional/${profissionalId}`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${BASE44_API_KEY}`
         },
         body: JSON.stringify({
-          mp_access_token: data.access_token,
-          mp_refresh_token: data.refresh_token,
-          mp_user_id: data.user_id,
+          mp_access_token: mpData.access_token,
+          mp_refresh_token: mpData.refresh_token,
+          mp_user_id: mpData.user_id,
           mp_conectado: true
         })
       }
     );
 
-    if (!saveResponse.ok) {
-      const err = await saveResponse.text();
+    const base44Data = await base44Response.json();
+
+    if (!base44Response.ok) {
       return res.status(500).json({
         error: "Erro ao salvar no Base44",
-        details: err
+        details: base44Data
       });
     }
 
-    // ✅ REDIRECIONAMENTO CORRETO (PROFISSIONAL)
-    return res.redirect(
-      `https://beautyglow-br.base44.app/profissional/perfil`
-    );
+    // ✅ SUCESSO → redireciona
+    return res.redirect("https://beautyglow-br.base44.app/profissional/perfil");
 
   } catch (error) {
     return res.status(500).json({
