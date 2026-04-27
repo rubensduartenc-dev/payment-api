@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   try {
     const { code, state } = req.query;
 
-    // 🔒 Validação
+    // 🔒 Validação básica
     if (!code || !state) {
       return res.status(400).json({
         error: "Missing code or state"
@@ -12,11 +12,18 @@ export default async function handler(req, res) {
     // 🔑 Credenciais
     const CLIENT_ID = process.env.MP_CLIENT_ID;
     const CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
+    const BASE44_API_KEY = process.env.BASE44_API_KEY;
+
+    if (!CLIENT_ID || !CLIENT_SECRET || !BASE44_API_KEY) {
+      return res.status(500).json({
+        error: "Missing environment variables"
+      });
+    }
 
     const REDIRECT_URI = "https://payment-api-brown.vercel.app/api/oauth/callback";
 
     // 🔁 Troca o code pelo token
-    const response = await fetch("https://api.mercadopago.com/oauth/token", {
+    const tokenResponse = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -30,9 +37,9 @@ export default async function handler(req, res) {
       })
     });
 
-    const data = await response.json();
+    const data = await tokenResponse.json();
 
-    if (!response.ok) {
+    if (!tokenResponse.ok) {
       return res.status(500).json({
         error: "Erro ao trocar token",
         details: data
@@ -43,22 +50,35 @@ export default async function handler(req, res) {
     const profissionalId = state;
 
     // 🔥 SALVAR NO BASE44
-    await fetch(`https://base44.app/api/apps/SEU_APP_ID/collections/profissionais/${profissionalId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.BASE44_API_KEY}`
-      },
-      body: JSON.stringify({
-        mp_access_token: data.access_token,
-        mp_refresh_token: data.refresh_token,
-        mp_user_id: data.user_id,
-        mp_conectado: true
-      })
-    });
+    const saveResponse = await fetch(
+      `https://base44.app/api/apps/SEU_APP_ID/collections/profissionais/${profissionalId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${BASE44_API_KEY}`
+        },
+        body: JSON.stringify({
+          mp_access_token: data.access_token,
+          mp_refresh_token: data.refresh_token,
+          mp_user_id: data.user_id,
+          mp_conectado: true
+        })
+      }
+    );
 
-    // ✅ REDIRECIONA (SEM ERRO 404)
-    return res.redirect("https://beautyglow-br.base44.app");
+    if (!saveResponse.ok) {
+      const err = await saveResponse.text();
+      return res.status(500).json({
+        error: "Erro ao salvar no Base44",
+        details: err
+      });
+    }
+
+    // ✅ REDIRECIONAMENTO CORRETO (PROFISSIONAL)
+    return res.redirect(
+      `https://beautyglow-br.base44.app/profissional/perfil`
+    );
 
   } catch (error) {
     return res.status(500).json({
