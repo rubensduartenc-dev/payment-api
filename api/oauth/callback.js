@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     const base44Response = await fetch(
       `https://base44.app/api/entities/profissional/${profissionalId}`,
       {
-        method: "PATCH",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "api_key": process.env.BASE44_API_KEY
