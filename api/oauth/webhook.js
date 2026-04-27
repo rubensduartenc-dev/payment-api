@@ -22,11 +22,81 @@ export default async function handler(req, res) {
       // ✅ Verifica se foi aprovado
       if (payment.status === "approved") {
 
-        // 🔥 PEGAR ID DO AGENDAMENTO
-        const bookingId = payment.external_reference;
+  const bookingId = payment.external_reference;
 
-        console.log("Pagamento aprovado para booking:", bookingId);
+  console.log("Pagamento aprovado para booking:", bookingId);
 
+  // 🔥 1. BUSCAR BOOKING
+  const bookingResponse = await fetch(
+    "https://beautyglow-br.base44.app/functions/adminAction",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api_key": process.env.BASE44_API_KEY
+      },
+      body: JSON.stringify({
+        action: "get",
+        target_type: "booking",
+        target_id: bookingId
+      })
+    }
+  );
+
+  const { result: booking } = await bookingResponse.json();
+
+  if (!booking) {
+    console.error("Booking não encontrado");
+    return;
+  }
+
+  // 🔥 2. BUSCAR PROFISSIONAL
+  const professionalResponse = await fetch(
+    "https://beautyglow-br.base44.app/functions/adminAction",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api_key": process.env.BASE44_API_KEY
+      },
+      body: JSON.stringify({
+        action: "get",
+        target_type: "professional",
+        target_id: booking.professional_id
+      })
+    }
+  );
+
+  const { result: professional } = await professionalResponse.json();
+
+  if (!professional || !professional.mp_access_token) {
+    console.error("Token do profissional não encontrado");
+    return;
+  }
+
+  // 🔥 3. AGORA SIM você pode confiar no pagamento
+  console.log("Profissional encontrado:", professional.id);
+
+  // 🔥 4. ATUALIZAR BOOKING COMO PAGO
+  await fetch(
+    "https://beautyglow-br.base44.app/functions/adminAction",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api_key": process.env.BASE44_API_KEY
+      },
+      body: JSON.stringify({
+        action: "update",
+        target_type: "booking",
+        target_id: bookingId,
+        data: {
+          payment_status: "approved"
+        }
+      })
+    }
+  );
+}
         // 🚀 ATUALIZAR NO BASE44
         await fetch("https://beautyglow-br.base44.app/functions/adminAction", {
           method: "POST",
