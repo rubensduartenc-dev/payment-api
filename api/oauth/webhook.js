@@ -1,5 +1,18 @@
 export default async function handler(req, res) {
   try {
+
+    // 🔥 evitar erro em GET (teste no navegador)
+    if (req.method !== "POST") {
+      return res.status(200).send("Webhook ativo");
+    }
+
+    const body = req.body;
+
+    if (!body) {
+      return res.status(200).send("Sem body");
+    }
+    export default async function handler(req, res) {
+  try {
     const body = req.body;
 
     // 🔍 Só processa eventos de pagamento
