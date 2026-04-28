@@ -1,11 +1,5 @@
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
 export default async function handler(req, res) {
   try {
-    // 🔹 Mercado Pago testa com GET
     if (req.method === "GET") {
       return res.status(200).send("OK");
     }
@@ -14,23 +8,20 @@ export default async function handler(req, res) {
       return res.status(405).end();
     }
 
-   const body = typeof req.body === "string"
-  ? JSON.parse(req.body)
-  : req.body;
+    const body = req.body;
 
     console.log("Webhook recebido:", JSON.stringify(body));
 
-    // 🔥 Validação correta do payload
-    if (!body || !body.data || !body.data.id) {
-      console.log("Webhook inválido");
+    if (!body || body.type !== "payment") {
       return res.status(200).end();
     }
 
-    console.log("Evento recebido:", body.action);
+    const paymentId = body.data?.id;
 
-    const paymentId = body.data.id;
+    if (!paymentId) {
+      return res.status(200).end();
+    }
 
-    // 🔥 Buscar pagamento no Mercado Pago
     const mpResponse = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       {
@@ -42,25 +33,20 @@ export default async function handler(req, res) {
 
     const payment = await mpResponse.json();
 
-    console.log("Pagamento completo:", payment);
+    console.log("Pagamento:", payment);
 
-    // 🔥 Só processa se aprovado
     if (payment.status !== "approved") {
-      console.log("Pagamento não aprovado:", payment.status);
       return res.status(200).end();
     }
 
-    // 🔥 Pega o booking vinculado
     const bookingId = payment.external_reference;
 
     if (!bookingId) {
-      console.log("Sem bookingId");
       return res.status(200).end();
     }
 
     console.log("Atualizando booking:", bookingId);
 
-    // 🔥 Atualiza no Base44
     await fetch("https://beautyglow-br.base44.app/functions/adminAction", {
       method: "POST",
       headers: {
@@ -68,7 +54,7 @@ export default async function handler(req, res) {
         "api_key": process.env.BASE44_API_KEY,
       },
       body: JSON.stringify({
-        action: "update",
+        action: "update_booking_payment",
         target_type: "booking",
         target_id: bookingId,
         data: {
@@ -78,12 +64,10 @@ export default async function handler(req, res) {
       }),
     });
 
-    console.log("Booking atualizado com sucesso");
-
     return res.status(200).end();
 
   } catch (error) {
-    console.error("Erro no webhook:", error);
+    console.error("Erro webhook:", error);
     return res.status(500).end();
   }
 }
