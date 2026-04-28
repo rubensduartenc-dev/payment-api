@@ -80,6 +80,7 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+    console.log("RESPOSTA MERCADO PAGO:", data);
 
     if (!response.ok) {
       console.error("Erro Mercado Pago:", data);
