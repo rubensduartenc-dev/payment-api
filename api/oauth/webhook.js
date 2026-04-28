@@ -47,22 +47,26 @@ export default async function handler(req, res) {
 
     console.log("Atualizando booking:", bookingId);
 
-    await fetch("https://beautyglow-br.base44.app/functions/adminAction", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api_key": process.env.BASE44_API_KEY,
-      },
-      body: JSON.stringify({
-        action: "update_booking_payment",
-        target_type: "booking",
-        target_id: bookingId,
-        data: {
-          status: "confirmed",
-          payment_status: "approved",
-        },
-      }),
-    });
+    const updateResponse = await fetch("https://beautyglow-br.base44.app/functions/adminAction", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "api_key": process.env.BASE44_API_KEY,
+  },
+  body: JSON.stringify({
+    action: "update_booking_payment",
+    target_type: "booking",
+    target_id: bookingId,
+    data: {
+      status: "confirmed",
+      payment_status: "approved",
+    },
+  }),
+});
+
+const updateText = await updateResponse.text();
+
+console.log("RESPOSTA BASE44:", updateText);
 
     return res.status(200).end();
 
