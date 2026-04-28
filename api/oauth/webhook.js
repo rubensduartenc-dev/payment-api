@@ -54,14 +54,13 @@ export default async function handler(req, res) {
     "api_key": process.env.BASE44_API_KEY,
   },
   body: JSON.stringify({
-    action: "update_booking_payment",
-    target_type: "booking",
-    target_id: bookingId,
-    data: {
-      status: "confirmed",
-      payment_status: "approved",
-    },
-  }),
+  action: "update",
+  entity: "Booking",
+  id: bookingId,
+  data: {
+    status: "confirmed"
+  }
+}),
 });
 
 const updateText = await updateResponse.text();
