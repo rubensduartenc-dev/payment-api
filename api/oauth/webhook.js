@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    // 🔥 Mercado Pago envia GET e POST
+    // 🔹 Mercado Pago testa com GET
     if (req.method === "GET") {
       return res.status(200).send("OK");
     }
@@ -13,24 +13,15 @@ export default async function handler(req, res) {
 
     console.log("Webhook recebido:", JSON.stringify(body));
 
-    // 🔥 Validação básica
-    if (!body || !body.type) {
-      console.log("Webhook sem tipo válido");
+    // 🔥 Validação correta do payload
+    if (!body || !body.data || !body.data.id) {
+      console.log("Webhook inválido");
       return res.status(200).end();
     }
 
-    // 🔥 Só processa pagamentos
-    if (body.type !== "payment") {
-      console.log("Evento ignorado:", body.type);
-      return res.status(200).end();
-    }
+    console.log("Evento recebido:", body.action);
 
-    const paymentId = body.data?.id;
-
-    if (!paymentId) {
-      console.log("Sem paymentId");
-      return res.status(200).end();
-    }
+    const paymentId = body.data.id;
 
     // 🔥 Buscar pagamento no Mercado Pago
     const mpResponse = await fetch(
@@ -46,13 +37,13 @@ export default async function handler(req, res) {
 
     console.log("Pagamento completo:", payment);
 
-    // 🔥 Só continua se aprovado
+    // 🔥 Só processa se aprovado
     if (payment.status !== "approved") {
       console.log("Pagamento não aprovado:", payment.status);
       return res.status(200).end();
     }
 
-    // 🔥 ESSENCIAL
+    // 🔥 Pega o booking vinculado
     const bookingId = payment.external_reference;
 
     if (!bookingId) {
@@ -62,7 +53,7 @@ export default async function handler(req, res) {
 
     console.log("Atualizando booking:", bookingId);
 
-    // 🔥 Atualizar no Base44
+    // 🔥 Atualiza no Base44
     await fetch("https://beautyglow-br.base44.app/functions/adminAction", {
       method: "POST",
       headers: {
@@ -70,7 +61,7 @@ export default async function handler(req, res) {
         "api_key": process.env.BASE44_API_KEY,
       },
       body: JSON.stringify({
-        action: "update_booking_payment",
+        action: "update",
         target_type: "booking",
         target_id: bookingId,
         data: {
