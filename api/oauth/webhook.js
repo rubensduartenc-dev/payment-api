@@ -18,33 +18,28 @@ export default async function handler(req, res) {
       return res.status(200).end();
     }
 
-    // 🔥 1. Extrair paymentId corretamente
+    // 🔥 1. Extrair paymentId corretamente (FILTRO CRÍTICO)
     let paymentId = null;
 
-// 🔥 formato novo (correto)
-if (body.data?.id && body.type === "payment") {
-  paymentId = body.data.id;
-}
+    // formato novo
+    if (body.data?.id && body.type === "payment") {
+      paymentId = body.data.id;
+    }
 
-// 🔥 formato antigo
-else if (body.topic === "payment" && body.resource) {
-  paymentId = body.resource.split("/").pop();
-}
+    // formato antigo
+    else if (body.topic === "payment" && body.resource) {
+      paymentId = body.resource.split("/").pop();
+    }
 
-// 🚫 IGNORA outros eventos (merchant_order, etc)
-if (!paymentId) {
-  console.log("❌ Evento ignorado (não é payment):", body);
-  return res.status(200).end();
-}
-
+    // ignora eventos que não são pagamento
     if (!paymentId) {
-      console.log("❌ Sem paymentId");
+      console.log("❌ Evento ignorado (não é payment):", body);
       return res.status(200).end();
     }
 
     console.log("🆔 PAYMENT ID:", paymentId);
 
-    // 🔥 2. Buscar pagamento real no MP
+    // 🔥 2. Buscar pagamento no Mercado Pago
     const mpResponse = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       {
@@ -54,7 +49,6 @@ if (!paymentId) {
       }
     );
 
-    // 🚨 VALIDA resposta da API
     if (!mpResponse.ok) {
       const errorText = await mpResponse.text();
       console.log("❌ ERRO MP:", errorText);
@@ -64,15 +58,16 @@ if (!paymentId) {
     const payment = await mpResponse.json();
 
     console.log("💰 STATUS REAL:", payment.status);
-    console.log("📦 PAYMENT:", payment);
+    console.log("📌 external_reference:", payment.external_reference);
+    console.log("📦 PAYMENT COMPLETO:", payment);
 
-    // 🔒 Só continua se aprovado
+    // 🔒 só continua se aprovado
     if (!payment || payment.status !== "approved") {
       console.log("❌ IGNORADO - status:", payment?.status);
       return res.status(200).end();
     }
 
-    // 🔥 3. Pegar bookingId correto
+    // 🔥 3. pegar bookingId
     const bookingId = payment.external_reference;
 
     if (!bookingId) {
@@ -82,7 +77,7 @@ if (!paymentId) {
 
     console.log("📌 Atualizando booking:", bookingId);
 
-    // 🔥 4. Atualizar Base44
+    // 🔥 4. atualizar Base44
     const base44Response = await fetch(
       "https://beautyglow-br.base44.app/functions/adminAction",
       {
@@ -107,7 +102,6 @@ if (!paymentId) {
 
     console.log("📦 RESPOSTA BASE44:", result);
 
-    // 🚨 valida se realmente atualizou
     if (!result || result.error) {
       console.log("❌ ERRO AO ATUALIZAR BOOKING");
     } else {
