@@ -20,14 +20,26 @@ export default async function handler(req, res) {
     // 🔥 1. extrair paymentId (robusto)
     let paymentId = null;
 
-    // formato novo (recomendado)
-    if (body.data?.id) {
-      paymentId = body.data.id;
-    }
-    // formato antigo / fallback
-    else if (body.resource) {
-      paymentId = body.resource.split("/").pop();
-    }
+// 🔥 filtra corretamente eventos de pagamento
+const isPaymentEvent =
+  body.type === "payment" ||
+  body.action?.includes("payment");
+
+// formato novo
+if (isPaymentEvent && body.data?.id) {
+  paymentId = body.data.id;
+}
+
+// formato antigo
+else if (isPaymentEvent && body.resource) {
+  paymentId = body.resource.split("/").pop();
+}
+
+// ignora tudo que não for pagamento
+if (!paymentId) {
+  console.log("❌ Evento ignorado (não é payment):", body);
+  return res.status(200).end();
+}
 
     if (!paymentId) {
       console.log("❌ Evento ignorado (sem paymentId):", body);
