@@ -79,24 +79,19 @@ export default async function handler(req, res) {
 
     // 🔥 4. atualizar Base44
     const base44Response = await fetch(
-      "https://beautyglow-br.base44.app/functions/adminAction",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          api_key: process.env.BASE44_API_KEY,
-        },
-        body: JSON.stringify({
-          action: "update_booking_payment",
-          target_type: "booking",
-          target_id: bookingId,
-          data: {
-            status: "confirmed",
-            mercadopago_payment_id: String(payment.id),
-          },
-        }),
-      }
-    );
+  `https://beautyglow-br.base44.app/api/entities/Booking/${bookingId}`,
+  {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      api_key: process.env.BASE44_API_KEY,
+    },
+    body: JSON.stringify({
+      status: "confirmed",
+      mercadopago_payment_id: String(payment.id),
+    }),
+  }
+);
 
     const result = await base44Response.json();
 
