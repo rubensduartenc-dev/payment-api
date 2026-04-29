@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    // Mercado Pago pode enviar GET (validação)
+    // 🔹 Validação inicial
     if (req.method === "GET") {
       return res.status(200).send("OK");
     }
@@ -13,25 +13,24 @@ export default async function handler(req, res) {
 
     console.log("🔔 Webhook recebido:", JSON.stringify(body));
 
-    // 🔒 valida estrutura básica
     if (!body) {
       console.log("❌ Body vazio");
       return res.status(200).end();
     }
 
-    // 🔥 suporta dois formatos do Mercado Pago
+    // 🔥 1. Extrair paymentId corretamente
     const paymentId =
-      body.data?.id || // formato novo
-      body.resource?.split("/").pop(); // formato antigo
+      body?.data?.id ||
+      (body?.resource ? body.resource.split("/").pop() : null);
 
     if (!paymentId) {
       console.log("❌ Sem paymentId");
       return res.status(200).end();
     }
 
-    console.log("🔎 Buscando pagamento:", paymentId);
+    console.log("🆔 PAYMENT ID:", paymentId);
 
-    // 🔥 buscar pagamento completo
+    // 🔥 2. Buscar pagamento real no MP
     const mpResponse = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       {
@@ -41,17 +40,25 @@ export default async function handler(req, res) {
       }
     );
 
+    // 🚨 VALIDA resposta da API
+    if (!mpResponse.ok) {
+      const errorText = await mpResponse.text();
+      console.log("❌ ERRO MP:", errorText);
+      return res.status(200).end();
+    }
+
     const payment = await mpResponse.json();
 
-    console.log("💰 Pagamento completo:", payment);
+    console.log("💰 STATUS REAL:", payment.status);
+    console.log("📦 PAYMENT:", payment);
 
-    // 🔒 BLOQUEIO CRÍTICO
+    // 🔒 Só continua se aprovado
     if (!payment || payment.status !== "approved") {
       console.log("❌ IGNORADO - status:", payment?.status);
       return res.status(200).end();
     }
 
-    // 🔥 pegar referência do booking
+    // 🔥 3. Pegar bookingId correto
     const bookingId = payment.external_reference;
 
     if (!bookingId) {
@@ -61,7 +68,7 @@ export default async function handler(req, res) {
 
     console.log("📌 Atualizando booking:", bookingId);
 
-    // 🔥 chamada correta para Base44
+    // 🔥 4. Atualizar Base44
     const base44Response = await fetch(
       "https://beautyglow-br.base44.app/functions/adminAction",
       {
@@ -76,7 +83,7 @@ export default async function handler(req, res) {
           target_id: bookingId,
           data: {
             status: "confirmed",
-            mercadopago_payment_id: payment.id,
+            mercadopago_payment_id: String(payment.id),
           },
         }),
       }
@@ -84,11 +91,17 @@ export default async function handler(req, res) {
 
     const result = await base44Response.json();
 
-    console.log("✅ RESPOSTA BASE44:", result);
+    console.log("📦 RESPOSTA BASE44:", result);
 
-    console.log("✅ Booking atualizado com sucesso");
+    // 🚨 valida se realmente atualizou
+    if (!result || result.error) {
+      console.log("❌ ERRO AO ATUALIZAR BOOKING");
+    } else {
+      console.log("✅ Booking atualizado com sucesso");
+    }
 
     return res.status(200).end();
+
   } catch (error) {
     console.error("🔥 ERRO NO WEBHOOK:", error);
     return res.status(500).end();
