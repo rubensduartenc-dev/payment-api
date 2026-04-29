@@ -19,9 +19,23 @@ export default async function handler(req, res) {
     }
 
     // 🔥 1. Extrair paymentId corretamente
-    const paymentId =
-      body?.data?.id ||
-      (body?.resource ? body.resource.split("/").pop() : null);
+    let paymentId = null;
+
+// 🔥 formato novo (correto)
+if (body.data?.id && body.type === "payment") {
+  paymentId = body.data.id;
+}
+
+// 🔥 formato antigo
+else if (body.topic === "payment" && body.resource) {
+  paymentId = body.resource.split("/").pop();
+}
+
+// 🚫 IGNORA outros eventos (merchant_order, etc)
+if (!paymentId) {
+  console.log("❌ Evento ignorado (não é payment):", body);
+  return res.status(200).end();
+}
 
     if (!paymentId) {
       console.log("❌ Sem paymentId");
