@@ -20,9 +20,10 @@ export default async function handler(req, res) {
     // 🔥 1. extrair paymentId (robusto)
     let paymentId = null;
 
-// 🔥 filtra corretamente eventos de pagamento
+// 🔥 suporte completo (todos formatos do MP)
 const isPaymentEvent =
   body.type === "payment" ||
+  body.topic === "payment" ||
   body.action?.includes("payment");
 
 // formato novo
@@ -30,21 +31,16 @@ if (isPaymentEvent && body.data?.id) {
   paymentId = body.data.id;
 }
 
-// formato antigo
+// formato antigo (SEU CASO ATUAL)
 else if (isPaymentEvent && body.resource) {
   paymentId = body.resource.split("/").pop();
 }
 
-// ignora tudo que não for pagamento
+// ignora outros eventos
 if (!paymentId) {
   console.log("❌ Evento ignorado (não é payment):", body);
   return res.status(200).end();
 }
-
-    if (!paymentId) {
-      console.log("❌ Evento ignorado (sem paymentId):", body);
-      return res.status(200).end();
-    }
 
     console.log("🆔 PAYMENT ID:", paymentId);
 
