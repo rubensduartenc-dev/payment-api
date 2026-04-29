@@ -1,6 +1,5 @@
 export default async function handler(req, res) {
   try {
-    // 🔹 validação inicial
     if (req.method === "GET") {
       return res.status(200).send("OK");
     }
@@ -10,6 +9,7 @@ export default async function handler(req, res) {
     }
 
     const body = req.body;
+
     console.log("🔔 Webhook recebido:", JSON.stringify(body));
 
     if (!body) {
@@ -17,35 +17,29 @@ export default async function handler(req, res) {
       return res.status(200).end();
     }
 
-    // 🔥 1. extrair paymentId (robusto)
+    // 🔥 1. identificar se é evento de pagamento
+    const isPaymentEvent =
+      body.type === "payment" ||
+      body.topic === "payment" ||
+      body.action?.includes("payment");
+
     let paymentId = null;
 
-// 🔥 suporte completo (todos formatos do MP)
-const isPaymentEvent =
-  body.type === "payment" ||
-  body.topic === "payment" ||
-  body.action?.includes("payment");
+    if (isPaymentEvent && body.data?.id) {
+      paymentId = body.data.id;
+    } else if (isPaymentEvent && body.resource) {
+      paymentId = body.resource.split("/").pop();
+    }
 
-// formato novo
-if (isPaymentEvent && body.data?.id) {
-  paymentId = body.data.id;
-}
-
-// formato antigo (SEU CASO ATUAL)
-else if (isPaymentEvent && body.resource) {
-  paymentId = body.resource.split("/").pop();
-}
-
-// ignora outros eventos
-if (!paymentId) {
-  console.log("❌ Evento ignorado (não é payment):", body);
-  return res.status(200).end();
-}
+    if (!paymentId) {
+      console.log("❌ Evento ignorado (não é payment):", body);
+      return res.status(200).end();
+    }
 
     console.log("🆔 PAYMENT ID:", paymentId);
 
-    // 🔥 2. buscar pagamento no Mercado Pago
-    const mpResponse = await fetch(
+    // 🔥 2. PRIMEIRO buscar payment com token global (para pegar external_reference)
+    const initialResponse = await fetch(
       `https://api.mercadopago.com/v1/payments/${paymentId}`,
       {
         headers: {
@@ -54,35 +48,25 @@ if (!paymentId) {
       }
     );
 
-    if (!mpResponse.ok) {
-      const errorText = await mpResponse.text();
-      console.log("❌ ERRO MP:", errorText);
+    if (!initialResponse.ok) {
+      const errorText = await initialResponse.text();
+      console.log("❌ ERRO MP (initial):", errorText);
       return res.status(200).end();
     }
 
-    const payment = await mpResponse.json();
+    const initialPayment = await initialResponse.json();
 
-    console.log("💰 STATUS REAL:", payment.status);
-    console.log("📌 external_reference:", payment.external_reference);
+    const bookingId = initialPayment.external_reference;
 
-    // 🔒 só continua se aprovado
-    if (!payment || payment.status !== "approved") {
-      console.log("⏳ IGNORADO - status:", payment?.status);
-      return res.status(200).end();
-    }
-
-    // 🔥 3. pegar bookingId
-    const bookingId = payment.external_reference;
+    console.log("📌 external_reference:", bookingId);
 
     if (!bookingId) {
       console.log("❌ Sem external_reference");
       return res.status(200).end();
     }
 
-    console.log("📌 Atualizando booking:", bookingId);
-
-    // 🔥 4. evitar update duplicado (idempotência simples)
-    const checkResponse = await fetch(
+    // 🔥 3. buscar booking para pegar token do profissional
+    const bookingResponse = await fetch(
       `https://beautyglow-br.base44.app/api/entities/Booking/${bookingId}`,
       {
         headers: {
@@ -91,15 +75,53 @@ if (!paymentId) {
       }
     );
 
-    const currentBooking = await checkResponse.json();
+    const booking = await bookingResponse.json();
 
-    if (currentBooking?.status === "confirmed") {
-      console.log("⚠️ Booking já confirmado, ignorando duplicação");
+    const accessToken = booking?.mp_access_token;
+
+    if (!accessToken) {
+      console.log("❌ Booking sem mp_access_token");
       return res.status(200).end();
     }
 
-    // 🔥 5. atualizar booking
-    const base44Response = await fetch(
+    console.log("🔑 Usando token do profissional");
+
+    // 🔥 4. buscar payment REAL com token correto
+    const mpResponse = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!mpResponse.ok) {
+      const errorText = await mpResponse.text();
+      console.log("❌ ERRO MP (final):", errorText);
+      return res.status(200).end();
+    }
+
+    const payment = await mpResponse.json();
+
+    console.log("💰 STATUS REAL:", payment.status);
+
+    // 🔒 só continua se aprovado
+    if (payment.status !== "approved") {
+      console.log("⏳ IGNORADO - status:", payment.status);
+      return res.status(200).end();
+    }
+
+    console.log("📌 Atualizando booking:", bookingId);
+
+    // 🔥 5. evitar duplicação
+    if (booking.status === "confirmed") {
+      console.log("⚠️ Já confirmado, ignorando");
+      return res.status(200).end();
+    }
+
+    // 🔥 6. atualizar booking
+    const updateResponse = await fetch(
       `https://beautyglow-br.base44.app/api/entities/Booking/${bookingId}`,
       {
         method: "PATCH",
@@ -114,7 +136,7 @@ if (!paymentId) {
       }
     );
 
-    const result = await base44Response.json();
+    const result = await updateResponse.json();
 
     console.log("📦 RESPOSTA BASE44:", result);
 
@@ -125,7 +147,6 @@ if (!paymentId) {
     }
 
     return res.status(200).end();
-
   } catch (error) {
     console.error("🔥 ERRO NO WEBHOOK:", error);
     return res.status(500).end();
